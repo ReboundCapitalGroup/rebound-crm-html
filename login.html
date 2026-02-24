@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rebound Capital Group — CRM Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--rcg-dark:#1a1a1a;--rcg-gold:#d4af37;--rcg-gold-light:#f0d78c;--rcg-bg:#0f172a;--white:#fff;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--rcg-bg);min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;position:relative;overflow:hidden;}
+body::before{content:'';position:absolute;top:-200px;right:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(212,175,55,0.08) 0%,transparent 70%);pointer-events:none;}
+body::after{content:'';position:absolute;bottom:-200px;left:-200px;width:500px;height:500px;background:radial-gradient(circle,rgba(212,175,55,0.05) 0%,transparent 70%);pointer-events:none;}
+.login-wrapper{width:100%;max-width:420px;padding:2rem;position:relative;z-index:1;animation:fadeUp 0.6s ease-out;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.brand{text-align:center;margin-bottom:2.5rem;}
+.brand-icon{font-size:3rem;display:block;margin-bottom:0.75rem;filter:drop-shadow(0 0 20px rgba(212,175,55,0.4));}
+.brand-name{font-size:1.6rem;color:var(--white);font-weight:700;}
+.brand-tagline{font-size:0.75rem;color:var(--rcg-gold);letter-spacing:0.12em;text-transform:uppercase;margin-top:0.25rem;font-weight:500;}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.2);border-radius:16px;padding:2.5rem;backdrop-filter:blur(10px);}
+.card-title{color:var(--white);font-size:1.4rem;font-weight:600;margin-bottom:1.75rem;}
+.form-group{margin-bottom:1.25rem;}
+label{display:block;color:#94a3b8;font-size:0.8rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem;}
+.form-control{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.75rem 1rem;color:var(--white);font-family:'Inter',sans-serif;font-size:0.95rem;transition:all 0.2s;outline:none;}
+.form-control:focus{border-color:var(--rcg-gold);background:rgba(212,175,55,0.06);box-shadow:0 0 0 3px rgba(212,175,55,0.1);}
+.form-control::placeholder{color:rgba(255,255,255,0.25);}
+.btn-login{width:100%;background:var(--rcg-gold);color:var(--rcg-dark);border:none;border-radius:8px;padding:0.875rem;font-family:'Inter',sans-serif;font-size:0.95rem;font-weight:600;letter-spacing:0.04em;cursor:pointer;transition:all 0.2s;margin-top:0.5rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;}
+.btn-login:hover{background:var(--rcg-gold-light);transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,175,55,0.3);}
+.btn-login:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.error-message{background:rgba(220,53,69,0.1);border:1px solid rgba(220,53,69,0.3);border-radius:8px;padding:0.75rem 1rem;color:#ff6b6b;font-size:0.85rem;margin-bottom:1.25rem;display:none;}
+.footer-text{text-align:center;color:rgba(255,255,255,0.2);font-size:0.75rem;margin-top:2rem;}
+.spinner{width:16px;height:16px;border:2px solid rgba(26,26,26,0.3);border-top-color:var(--rcg-dark);border-radius:50%;animation:spin 0.6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="brand">
+    <span class="brand-icon">💼</span>
+    <div class="brand-name">Rebound Capital Group</div>
+    <div class="brand-tagline">Surplus Recovery CRM</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Welcome back</div>
+    <div class="error-message" id="errorMsg"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" class="form-control" id="email" placeholder="you@reboundcapitalgroup.com" autofocus>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" class="form-control" id="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn-login" id="loginBtn" onclick="login()">Sign In</button>
+  </div>
+  <div class="footer-text">© 2025 Rebound Capital Group · All rights reserved</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fzievaswtkuguwyscngt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6aWV2YXN3dGt1Z3V3eXNjbmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzMDQ4MzcsImV4cCI6MjA1MTg4MDgzN30.zzIp7sgABKRTMB-ZWfMpPB4HbJoVF_bjZ-7u2TU4bFw';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Redirect if already logged in
+sb.auth.getSession().then(({ data }) => {
+  if (data.session) window.location.href = 'dashboard.html';
+});
+
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('errorMsg');
+
+  if (!email || !password) {
+    showError('Please enter your email and password.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Signing in...';
+  err.style.display = 'none';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    showError('Invalid email or password. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
+    return;
+  }
+
+  window.location.href = 'dashboard.html';
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>
