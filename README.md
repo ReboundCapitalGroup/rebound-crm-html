@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚀 REBOUND CAPITAL GROUP CRM
 
 **Clean, Stable CRM based on Sandstone's proven architecture**
@@ -82,3 +83,6 @@
 ---
 
 **Ready to finish the last 2 pages?** Type "yes"!
+=======
+# rebound-crm-html
+>>>>>>> 45e411cde4118104f1648139dc50f8b71fae7951
