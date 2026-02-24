@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — Rebound Capital Group CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="crm.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.stat-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:2rem;}
+@media(max-width:900px){.stat-cards{grid-template-columns:1fr;}}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.5rem;box-shadow:0 4px 6px -1px rgb(0 0 0/0.1);}
+.stat-card.featured{background:linear-gradient(135deg,#d4af37 0%,#f0d78c 100%);border:none;}
+.stat-card .label{font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:0.5rem;}
+.stat-card.featured .label{color:#1a1a1a;opacity:0.8;}
+.stat-card .value{font-size:2rem;font-weight:700;color:#fff;}
+.stat-card.featured .value{color:#1a1a1a;}
+.stat-card .sub{font-size:0.8rem;color:#94a3b8;margin-top:0.25rem;}
+.stat-card.featured .sub{color:#1a1a1a;opacity:0.7;}
+</style>
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="topbar">
+  <a class="topbar-brand" href="dashboard.html">
+    <span class="topbar-icon">💼</span>
+    <span>Rebound Capital Group</span>
+  </a>
+  <div class="topbar-right">
+    <div class="topbar-search">
+      <i class="fas fa-search"></i>
+      <input type="text" id="quickSearch" placeholder="Search leads..." onkeydown="if(event.key==='Enter'&&this.value)window.location.href='all-leads.html'">
+    </div>
+    <div class="user-menu">
+      <button class="user-btn" id="userBtn" onclick="document.getElementById('userDropdown').classList.toggle('show')">U</button>
+      <div class="user-dropdown" id="userDropdown">
+        <div class="user-dropdown-header">
+          <div class="name" id="dropName">User</div>
+          <div class="email" id="dropEmail"></div>
+        </div>
+        <div class="divider"></div>
+        <a onclick="logout()"><i class="fas fa-power-off"></i> Logout</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarInitials">U</div>
+    <div class="sidebar-user-info">
+      <div class="user-name" id="sidebarName">User</div>
+      <div class="user-role">Agent</div>
+    </div>
+  </div>
+  <div class="sidebar-divider">Menu</div>
+  <div>
+    <button class="sidebar-toggle open" onclick="toggleSidebar(this,'sub1')">
+      <i class="fas fa-user-circle icon"></i> <span id="sidebarMenuName">User</span>
+      <i class="fas fa-chevron-down chevron"></i>
+    </button>
+    <div class="sidebar-submenu open" id="sub1">
+      <a href="dashboard.html" class="active">Dashboard</a>
+    </div>
+  </div>
+  <div>
+    <button class="sidebar-toggle" onclick="toggleSidebar(this,'sub2')">
+      <i class="fas fa-briefcase icon"></i> Leads
+      <i class="fas fa-chevron-down chevron"></i>
+    </button>
+    <div class="sidebar-submenu" id="sub2">
+      <a href="all-leads.html">All Leads</a>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+  <div class="content-area">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p class="subtitle">Welcome back, <span id="welcomeName">User</span> 💼</p>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card featured">
+        <div class="label">Total Recoverable</div>
+        <div class="value" id="statSurplus">$0</div>
+        <div class="sub">Active surplus funds</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total Leads</div>
+        <div class="value" id="statTotal">0</div>
+        <div class="sub">In system</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Surplus Leads</div>
+        <div class="value" id="statSurplusCount">0</div>
+        <div class="sub">Surplus type</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-header">
+        <h5>Recent Leads</h5>
+        <a href="all-leads.html" class="btn btn-sm btn-outline">View All</a>
+      </div>
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead><tr><th>Case #</th><th>Property</th><th>County</th><th>Surplus</th><th>Status</th></tr></thead>
+          <tbody id="recentLeadsBody">
+            <tr class="loading-row"><td colspan="5"><div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;"><div class="spinner"></div> Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="crm.js"></script>
+<script>
+function toggleSidebar(btn,id){btn.classList.toggle('open');document.getElementById(id).classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.user-menu'))document.getElementById('userDropdown').classList.remove('show');});
+
+async function init() {
+  const user = await requireAuth();
+  if (!user) return;
+
+  const name = displayName(user.email);
+  const initials = name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('userBtn').textContent = initials;
+  document.getElementById('dropName').textContent = name;
+  document.getElementById('dropEmail').textContent = user.email;
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('sidebarInitials').textContent = initials;
+  document.getElementById('sidebarMenuName').textContent = name;
+  document.getElementById('welcomeName').textContent = name.split(' ')[0];
+
+  loadStats();
+  loadRecentLeads();
+}
+
+async function loadStats() {
+  const { data: leads, count: total } = await sb.from('leads').select('*', {count:'exact'});
+  
+  const surplusLeads = leads ? leads.filter(l => l.lead_type === 'Surplus') : [];
+  const totalSurplus = leads ? leads.reduce((sum, l) => {
+    if (l.surplus && l.status !== 'Dead') {
+      const amount = parseFloat(l.surplus.replace(/[$,]/g, ''));
+      return sum + (amount > 0 ? amount : 0);
+    }
+    return sum;
+  }, 0) : 0;
+
+  document.getElementById('statSurplus').textContent = '$' + totalSurplus.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+  document.getElementById('statTotal').textContent = (total||0).toLocaleString();
+  document.getElementById('statSurplusCount').textContent = surplusLeads.length.toLocaleString();
+}
+
+async function loadRecentLeads() {
+  const { data, error } = await sb.from('leads').select('id,case_number,property_address,county,surplus,status').limit(10).order('created_at', {ascending:false});
+  const tbody = document.getElementById('recentLeadsBody');
+  
+  if (error || !data || data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">💼</div><p>No leads yet</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr onclick="window.location.href='lead-view.html?id=${r.id}'">
+      <td style="font-family:monospace;font-size:0.85rem;">${esc(r.case_number)}</td>
+      <td style="font-weight:500;">${esc(r.property_address||'—')}</td>
+      <td>${esc(r.county||'—')}</td>
+      <td style="color:#10b981;font-weight:600;">${esc(r.surplus||'—')}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+}
+
+init();
+</script>
+</body>
+</html>

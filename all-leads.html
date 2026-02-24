@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Leads — Rebound Capital Group CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="crm.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.filter-bar{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;}
+.filter-select{border:1px solid #334155;border-radius:8px;padding:0.5rem 0.875rem;font-family:'Inter',sans-serif;font-size:0.875rem;color:#fff;background:#0f172a;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="topbar">
+  <a class="topbar-brand" href="dashboard.html">
+    <span class="topbar-icon">💼</span>
+    <span>Rebound Capital Group</span>
+  </a>
+  <div class="topbar-right">
+    <div class="topbar-search">
+      <i class="fas fa-search"></i>
+      <input type="text" id="quickSearch" placeholder="Search leads...">
+    </div>
+    <div class="user-menu">
+      <button class="user-btn" id="userBtn" onclick="document.getElementById('userDropdown').classList.toggle('show')">U</button>
+      <div class="user-dropdown" id="userDropdown">
+        <div class="user-dropdown-header">
+          <div class="name" id="dropName">User</div>
+          <div class="email" id="dropEmail"></div>
+        </div>
+        <div class="divider"></div>
+        <a onclick="logout()"><i class="fas fa-power-off"></i> Logout</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarInitials">U</div>
+    <div class="sidebar-user-info">
+      <div class="user-name" id="sidebarName">User</div>
+      <div class="user-role">Agent</div>
+    </div>
+  </div>
+  <div class="sidebar-divider">Menu</div>
+  <div>
+    <button class="sidebar-toggle" onclick="toggleSidebar(this,'sub1')">
+      <i class="fas fa-user-circle icon"></i> <span id="sidebarMenuName">User</span>
+      <i class="fas fa-chevron-down chevron"></i>
+    </button>
+    <div class="sidebar-submenu" id="sub1">
+      <a href="dashboard.html">Dashboard</a>
+    </div>
+  </div>
+  <div>
+    <button class="sidebar-toggle open" onclick="toggleSidebar(this,'sub2')">
+      <i class="fas fa-briefcase icon"></i> Leads
+      <i class="fas fa-chevron-down chevron"></i>
+    </button>
+    <div class="sidebar-submenu open" id="sub2">
+      <a href="all-leads.html" class="active">All Leads</a>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+  <div class="content-area">
+    <div class="page-header">
+      <h1>All Leads</h1>
+      <p class="subtitle">All leads in the system</p>
+      <div class="breadcrumb">
+        <a href="dashboard.html">Dashboard</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>All Leads</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5>Leads <span style="color:#94a3b8;font-weight:400;font-size:0.85rem;" id="totalCount"></span></h5>
+      </div>
+      <div class="card-body">
+        <div class="filter-bar">
+          <select class="filter-select" id="filterStatus" onchange="loadLeads()">
+            <option value="">All Statuses</option>
+            <option>New</option>
+            <option>Contacted</option>
+            <option>Interested</option>
+            <option>Not Interested</option>
+            <option>Dead</option>
+          </select>
+          <select class="filter-select" id="filterType" onchange="loadLeads()">
+            <option value="">All Types</option>
+            <option>Surplus</option>
+            <option>Future Auction</option>
+          </select>
+          <div class="search-bar" style="flex:1;max-width:300px;">
+            <i class="fas fa-search"></i>
+            <input type="text" id="tableSearch" placeholder="Search..." oninput="loadLeads()">
+          </div>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead>
+            <tr>
+              <th>Case #</th>
+              <th>Property</th>
+              <th>County</th>
+              <th>Type</th>
+              <th>Auction Date</th>
+              <th>Surplus</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="leadsBody">
+            <tr class="loading-row"><td colspan="7"><div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;"><div class="spinner"></div> Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="crm.js"></script>
+<script>
+function toggleSidebar(btn,id){btn.classList.toggle('open');document.getElementById(id).classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.user-menu'))document.getElementById('userDropdown').classList.remove('show');});
+
+async function init() {
+  const user = await requireAuth();
+  if (!user) return;
+
+  const name = displayName(user.email);
+  const initials = name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('userBtn').textContent = initials;
+  document.getElementById('dropName').textContent = name;
+  document.getElementById('dropEmail').textContent = user.email;
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('sidebarInitials').textContent = initials;
+  document.getElementById('sidebarMenuName').textContent = name;
+
+  loadLeads();
+}
+
+async function loadLeads() {
+  const tbody = document.getElementById('leadsBody');
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="7"><div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;"><div class="spinner"></div> Loading...</div></td></tr>`;
+
+  const status = document.getElementById('filterStatus').value;
+  const type = document.getElementById('filterType').value;
+  const search = document.getElementById('tableSearch').value.trim();
+
+  let query = sb.from('leads').select('*', {count:'exact'});
+
+  if (status) query = query.eq('status', status);
+  if (type) query = query.eq('lead_type', type);
+  if (search) {
+    query = query.or(`case_number.ilike.%${search}%,property_address.ilike.%${search}%,county.ilike.%${search}%,defendants.ilike.%${search}%`);
+  }
+
+  const { data, error, count } = await query.order('created_at', {ascending:false}).limit(100);
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">⚠️</div><p>Error loading leads</p></div></td></tr>`;
+    return;
+  }
+
+  document.getElementById('totalCount').textContent = `(${(count||0).toLocaleString()})`;
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">💼</div><p>No leads found</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr onclick="window.location.href='lead-view.html?id=${r.id}'">
+      <td style="font-family:monospace;font-size:0.85rem;">${esc(r.case_number)}</td>
+      <td style="font-weight:500;">${esc(r.property_address||'—')}</td>
+      <td>${esc(r.county||'—')}</td>
+      <td><span class="badge ${r.lead_type==='Surplus'?'bg-emerald-500/20 text-emerald-400':'bg-blue-500/20 text-blue-400'}">${esc(r.lead_type||'—')}</span></td>
+      <td>${esc(r.auction_date||'—')}</td>
+      <td style="color:#10b981;font-weight:600;">${esc(r.surplus||'—')}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+}
+
+init();
+</script>
+</body>
+</html>
